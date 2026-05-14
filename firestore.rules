@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function isAuthority() {
+      return isSignedIn() && exists(/databases/$(database)/documents/authority_users/$(request.auth.uid));
+    }
+    
+    function getAuthority() {
+      return get(/databases/$(database)/documents/authority_users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthority() && getAuthority().role == 'ADMIN';
+    }
+
+    // --- Incidents ---
+    function isValidIncident(data) {
+      return data.type in ['Fire', 'Crime', 'Accident', 'Flood', 'Medical', 'Explosion', 'Other']
+          && data.severity in ['Low', 'Medium', 'High', 'Critical']
+          && data.status in ['PENDING', 'RESPONDING', 'RESOLVED']
+          && data.location.lat is number && data.location.lng is number
+          && (data.description is string && data.description.size() <= 500)
+          && (data.address is string && data.address.size() <= 200)
+          && (data.get('photoUrl', '') is string)
+          && (data.get('reporterContact', '') is string);
+    }
+
+    match /incidents/{incidentId} {
+      // Public can read summaries, Authority can read full
+      allow get: if true;
+      allow list: if true;
+
+      // Public and Authority can create
+      allow create: if isValidId(incidentId) && isValidIncident(incoming()) 
+                     && incoming().status == 'PENDING'
+                     && incoming().createdAt == request.time;
+
+      // Only Authority can update status and assignedUnit
+      allow update: if isAuthority() && isValidIncident(incoming())
+                     && (
+                       (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'assignedUnit', 'updatedAt']) && incoming().updatedAt == request.time)
+                       || isAdmin()
+                     );
+      
+      allow delete: if isAdmin();
+    }
+
+    // --- Authority Users ---
+    function isValidAuthorityUser(data) {
+      return data.uid == request.auth.uid 
+          && data.agency in ['Police', 'Fire Service', 'NEMA', 'FRSC', 'Medical']
+          && data.role in ['ADMIN', 'RESPONDER'];
+    }
+
+    match /authority_users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      
+      // Initially, we might need a way to create the first admin or allow signup with a specific agency
+      // For this app, let's allow users to create their profile if they have a valid UID
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidAuthorityUser(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

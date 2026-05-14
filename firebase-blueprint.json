@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "Incident": {
+      "title": "Incident",
+      "description": "An emergency incident reported by a user or detected via remote sensing.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["Fire", "Crime", "Accident", "Flood", "Medical", "Explosion", "Other"],
+          "description": "Category of the incident"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"],
+          "description": "Severity level for triage"
+        },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          },
+          "required": ["lat", "lng"]
+        },
+        "address": { "type": "string" },
+        "description": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "reporterContact": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "RESPONDING", "RESOLVED"],
+          "description": "Current resolution status"
+        },
+        "assignedUnit": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "reporterId": { "type": "string" }
+      },
+      "required": ["type", "severity", "location", "status", "createdAt"]
+    },
+    "AuthorityUser": {
+      "title": "Authority User",
+      "description": "A user from an emergency response agency.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "agency": {
+          "type": "string",
+          "enum": ["Police", "Fire Service", "NEMA", "FRSC", "Medical"]
+        },
+        "role": { "type": "string", "enum": ["ADMIN", "RESPONDER"] }
+      },
+      "required": ["uid", "agency", "role"]
+    }
+  },
+  "firestore": {
+    "/incidents/{incidentId}": {
+      "schema": "Incident",
+      "description": "Collection of all reported incidents."
+    },
+    "/authority_users/{userId}": {
+      "schema": "AuthorityUser",
+      "description": "Registered authority personnel records."
+    }
+  }
+}

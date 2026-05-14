@@ -1,0 +1,10 @@
+{
+  "name": "GeoSentinel",
+  "description": "A real-time GIS and Remote Sensing platform for emergency incident monitoring and response, integrated with NASA FIRMS for fire detection.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
